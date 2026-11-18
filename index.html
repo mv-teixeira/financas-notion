@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanças & Investimentos • Notion Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+                    },
+                    colors: {
+                        notion: {
+                            darkBg: '#191919',
+                            darkCard: '#202020',
+                            darkHover: '#2C2C2C',
+                            darkBorder: '#2F2F2F',
+                            darkText: '#EBEBEB',
+                            darkMuted: '#9B9A97',
+                            lightBg: '#FFFFFF',
+                            lightCard: '#F7F7F5',
+                            lightHover: '#EFEFED',
+                            lightBorder: '#E9E9E7',
+                            lightText: '#37352F',
+                            lightMuted: '#787774'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar matching Notion's subtle aesthetic */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(155, 154, 151, 0.3);
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(155, 154, 151, 0.5);
+        }
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+    </style>
+</head>
+<body class="bg-notion-lightBg dark:bg-notion-darkBg text-notion-lightText dark:text-notion-darkText font-sans antialiased transition-colors duration-200 selection:bg-indigo-500/30">
+
+    <!-- Toast Notification Container (Replaces alert) -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Confirm Modal (Replaces confirm) -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+        <div class="bg-notion-lightBg dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder rounded-xl max-w-sm w-full p-5 shadow-2xl">
+            <h3 id="modal-title" class="text-base font-semibold mb-1.5">Confirmar ação</h3>
+            <p id="modal-desc" class="text-sm text-notion-lightMuted dark:text-notion-darkMuted mb-5">Tem certeza que deseja continuar?</p>
+            <div class="flex justify-end gap-2">
+                <button id="modal-cancel" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-notion-lightBorder dark:border-notion-darkBorder hover:bg-notion-lightHover dark:hover:bg-notion-darkHover transition-colors">
+                    Cancelar
+                </button>
+                <button id="modal-confirm" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-rose-600 hover:bg-rose-700 text-white transition-colors">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-5 sm:py-7 space-y-6">
+
+        <!-- 1. HEADER & NOTION CONTROLS -->
+        <header class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-notion-lightBorder dark:border-notion-darkBorder">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-lg bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex items-center justify-center text-lg shadow-2xs">
+                    📊
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg sm:text-xl font-bold tracking-tight">Finanças & Investimentos</h1>
+                        <span class="hidden md:inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
+                            Notion Sync
+                        </span>
+                    </div>
+                    <p class="text-xs text-notion-lightMuted dark:text-notion-darkMuted">Controle mensal de receitas, gastos e alocação de patrimônio</p>
+                </div>
+            </div>
+
+            <!-- Action Toolbar -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Month Selector -->
+                <div class="relative flex items-center">
+                    <select id="month-selector" aria-label="Selecionar Mês" class="appearance-none bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder hover:border-notion-lightMuted dark:hover:border-notion-darkMuted rounded-lg pl-3 pr-8 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer transition-colors">
+                        <option value="2026-09">Setembro 2026</option>
+                        <option value="2026-10">Outubro 2026</option>
+                        <option value="2026-11" selected>Novembro 2026</option>
+                        <option value="2026-12">Dezembro 2026</option>
+                        <option value="2027-01">Janeiro 2027</option>
+                    </select>
+                    <svg class="w-3.5 h-3.5 absolute right-2.5 pointer-events-none text-notion-lightMuted dark:text-notion-darkMuted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </div>
+
+                <!-- Theme Toggle -->
+                <button id="theme-toggle" title="Alternar Tema Claro/Escuro do Notion" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder hover:bg-notion-lightHover dark:hover:bg-notion-darkHover transition-colors">
+                    <span id="theme-icon">☀️</span>
+                    <span id="theme-label" class="hidden sm:inline">Modo Claro</span>
+                </button>
+
+                <!-- Export CSV -->
+                <button id="export-csv" title="Exportar dados do mês em CSV" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder hover:bg-notion-lightHover dark:hover:bg-notion-darkHover transition-colors">
+                    <svg class="w-3.5 h-3.5 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+                    </svg>
+                    <span>CSV</span>
+                </button>
+
+                <!-- Reset / Clear Menu -->
+                <button id="reset-sample" title="Restaurar dados de exemplo" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted hover:text-notion-lightText dark:hover:text-notion-darkText bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder hover:bg-notion-lightHover dark:hover:bg-notion-darkHover transition-colors">
+                    <span>Exemplo</span>
+                </button>
+                <button id="clear-data" title="Limpar dados do mês" class="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-rose-500 hover:bg-rose-500/10 border border-notion-lightBorder dark:border-notion-darkBorder transition-colors">
+                    <span>Limpar</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 2. SMART INSIGHTS BANNER -->
+        <section id="insights-banner" class="p-3.5 sm:p-4 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex items-start gap-3">
+            <div class="text-lg leading-none mt-0.5" id="insight-emoji">💡</div>
+            <div class="flex-1 text-xs sm:text-sm leading-relaxed">
+                <span class="font-semibold text-notion-lightText dark:text-notion-darkText">Leitura Inteligente do Mês: </span>
+                <span id="insight-text" class="text-notion-lightMuted dark:text-notion-darkMuted">Carregando análise financeira...</span>
+            </div>
+        </section>
+
+        <!-- 3. KPI SUMMARY CARDS (4 Cards) -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <!-- Card 1: Salário / Receita Total (Editable) -->
+            <div class="p-4 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder hover:border-indigo-500/40 transition-colors flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
+                        Salário / Receita Total
+                    </span>
+                    <button id="toggle-extra-income" class="text-[11px] font-medium text-indigo-500 hover:text-indigo-400 transition-colors">
+                        + Renda extra
+                    </button>
+                </div>
+                
+                <div class="flex items-baseline gap-1">
+                    <span class="text-sm font-semibold text-notion-lightMuted dark:text-notion-darkMuted">R$</span>
+                    <input type="text" id="salary-input" value="5.500,00" aria-label="Salário do Mês"
+                        class="w-full bg-transparent text-xl sm:text-2xl font-bold tracking-tight focus:outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 -ml-1 transition-all" />
+                </div>
+
+                <!-- Optional Extra Income Drawer -->
+                <div id="extra-income-box" class="hidden mt-2 pt-2 border-t border-notion-lightBorder dark:border-notion-darkBorder flex items-center justify-between gap-2">
+                    <label for="extra-income-input" class="text-[11px] text-notion-lightMuted dark:text-notion-darkMuted whitespace-nowrap">Renda Extra:</label>
+                    <div class="flex items-center gap-1 flex-1">
+                        <span class="text-xs text-notion-lightMuted dark:text-notion-darkMuted">R$</span>
+                        <input type="text" id="extra-income-input" value="0,00"
+                            class="w-full bg-notion-lightBg dark:bg-notion-darkBg border border-notion-lightBorder dark:border-notion-darkBorder rounded px-2 py-0.5 text-xs font-medium focus:outline-none focus:border-indigo-500" />
+                    </div>
+                </div>
+                <div id="total-income-sub" class="mt-1.5 text-[11px] text-notion-lightMuted dark:text-notion-darkMuted">
+                    Clique no valor acima para editar
+                </div>
+            </div>
+
+            <!-- Card 2: Total de Gastos -->
+            <div class="p-4 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                        Total de Gastos
+                    </span>
+                    <span id="kpi-expenses-pct" class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-500/10 text-rose-500">
+                        0%
+                    </span>
+                </div>
+                <div id="kpi-expenses-val" class="text-xl sm:text-2xl font-bold tracking-tight text-rose-500">
+                    R$ 0,00
+                </div>
+                <div class="mt-2 w-full bg-notion-lightBorder dark:bg-notion-darkBorder h-1.5 rounded-full overflow-hidden">
+                    <div id="kpi-expenses-bar" class="bg-rose-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Card 3: Total Investido -->
+            <div class="p-4 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Total Investido
+                    </span>
+                    <span id="kpi-invested-pct" class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-emerald-500/10 text-emerald-500">
+                        0%
+                    </span>
+                </div>
+                <div id="kpi-invested-val" class="text-xl sm:text-2xl font-bold tracking-tight text-emerald-500">
+                    R$ 0,00
+                </div>
+                <div class="mt-2 w-full bg-notion-lightBorder dark:bg-notion-darkBorder h-1.5 rounded-full overflow-hidden">
+                    <div id="kpi-invested-bar" class="bg-emerald-500 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Card 4: Saldo Livre / Disponível -->
+            <div class="p-4 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                        Saldo Livre / Disponível
+                    </span>
+                    <span id="kpi-free-pct" class="px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/10 text-amber-500">
+                        0%
+                    </span>
+                </div>
+                <div id="kpi-free-val" class="text-xl sm:text-2xl font-bold tracking-tight">
+                    R$ 0,00
+                </div>
+                <div class="mt-1.5 text-[11px] text-notion-lightMuted dark:text-notion-darkMuted" id="kpi-free-sub">
+                    Receita − Gastos − Investimentos
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. CHARTS & VISUAL ANALYTICS (3 Charts) -->
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <!-- Chart 1: Distribuição do Salário -->
+            <div class="p-4 sm:p-5 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex flex-col">
+                <div class="mb-3">
+                    <h2 class="text-sm font-semibold">Distribuição do Salário</h2>
+                    <p class="text-xs text-notion-lightMuted dark:text-notion-darkMuted">Proporção entre gastos, aportes e livre</p>
+                </div>
+                <div class="relative flex-1 min-h-[210px] flex items-center justify-center">
+                    <canvas id="chart-distribution"></canvas>
+                </div>
+            </div>
+
+            <!-- Chart 2: Gastos por Categoria -->
+            <div class="p-4 sm:p-5 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex flex-col">
+                <div class="mb-3">
+                    <h2 class="text-sm font-semibold">Gastos por Categoria</h2>
+                    <p class="text-xs text-notion-lightMuted dark:text-notion-darkMuted">Onde seu dinheiro está sendo consumido</p>
+                </div>
+                <div class="relative flex-1 min-h-[210px] flex items-center justify-center">
+                    <canvas id="chart-expenses"></canvas>
+                    <p id="empty-expenses-chart" class="hidden text-xs text-notion-lightMuted dark:text-notion-darkMuted text-center">Nenhum gasto registrado neste mês.</p>
+                </div>
+            </div>
+
+            <!-- Chart 3: Carteira de Investimentos -->
+            <div class="p-4 sm:p-5 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder flex flex-col">
+                <div class="mb-3">
+                    <h2 class="text-sm font-semibold">Carteira de Investimentos</h2>
+                    <p class="text-xs text-notion-lightMuted dark:text-notion-darkMuted">Alocação dos aportes por classe de ativo</p>
+                </div>
+                <div class="relative flex-1 min-h-[210px] flex items-center justify-center">
+                    <canvas id="chart-investments"></canvas>
+                    <p id="empty-investments-chart" class="hidden text-xs text-notion-lightMuted dark:text-notion-darkMuted text-center">Nenhum investimento registrado neste mês.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. DATA ENTRY FORM & TRANSACTION HISTORY TABLE -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+            
+            <!-- Interactive Data Entry Form (4 cols on lg) -->
+            <section class="lg:col-span-4 p-4 sm:p-5 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder">
+                <h2 class="text-sm font-semibold mb-1">Registrar Movimentação</h2>
+                <p class="text-xs text-notion-lightMuted dark:text-notion-darkMuted mb-4">Adicione um novo gasto ou aporte ao mês</p>
+
+                <form id="transaction-form" class="space-y-3.5">
+                    <!-- Type Selector Pills -->
+                    <div>
+                        <label class="block text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted mb-1.5">Tipo</label>
+                        <div class="grid grid-cols-2 gap-2 p-1 rounded-lg bg-notion-lightBg dark:bg-notion-darkBg border border-notion-lightBorder dark:border-notion-darkBorder">
+                            <button type="button" id="type-expense-btn" data-type="expense"
+                                class="py-1.5 px-3 rounded-md text-xs font-semibold transition-all bg-rose-500/15 text-rose-500 border border-rose-500/30">
+                                💸 Gasto
+                            </button>
+                            <button type="button" id="type-investment-btn" data-type="investment"
+                                class="py-1.5 px-3 rounded-md text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted hover:text-notion-lightText dark:hover:text-notion-darkText transition-all border border-transparent">
+                                📈 Investimento
+                            </button>
+                        </div>
+                        <input type="hidden" id="tx-type" value="expense">
+                    </div>
+
+                    <!-- Description -->
+                    <div>
+                        <label for="tx-desc" class="block text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted mb-1">Descrição</label>
+                        <input type="text" id="tx-desc" required placeholder="Ex: Supermercado, Aluguel, Tesouro Selic..."
+                            class="w-full px-3 py-2 rounded-lg text-xs bg-notion-lightBg dark:bg-notion-darkBg border border-notion-lightBorder dark:border-notion-darkBorder focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-colors" />
+                    </div>
+
+                    <!-- Category -->
+                    <div>
+                        <label for="tx-category" class="block text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted mb-1">Categoria</label>
+                        <div class="relative">
+                            <select id="tx-category"
+                                class="w-full appearance-none px-3 py-2 rounded-lg text-xs bg-notion-lightBg dark:bg-notion-darkBg border border-notion-lightBorder dark:border-notion-darkBorder focus:outline-none focus:ring-2 focus:ring-indigo-500/40 cursor-pointer transition-colors">
+                            </select>
+                            <svg class="w-3.5 h-3.5 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-notion-lightMuted dark:text-notion-darkMuted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+
+                    <!-- Amount & Date Grid -->
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div>
+                            <label for="tx-amount" class="block text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted mb-1">Valor (R$)</label>
+                            <input type="text" id="tx-amount" required placeholder="0,00"
+                                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-notion-lightBg dark:bg-notion-darkBg border border-notion-lightBorder dark:border-notion-darkBorder focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-colors" />
+                        </div>
+                        <div>
+                            <label for="tx-date" class="block text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted mb-1">Data</label>
+                            <input type="date" id="tx-date"
+                                class="w-full px-2.5 py-2 rounded-lg text-xs bg-notion-lightBg dark:bg-notion-darkBg border border-notion-lightBorder dark:border-notion-darkBorder focus:outline-none focus:ring-2 focus:ring-indigo-500/40 transition-colors" />
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit"
+                        class="w-full py-2.5 px-4 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-1.5 mt-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Adicionar Movimentação</span>
+                    </button>
+                </form>
+            </section>
+
+            <!-- Notion-style Database Table (8 cols on lg) -->
+            <section class="lg:col-span-8 rounded-xl bg-notion-lightCard dark:bg-notion-darkCard border border-notion-lightBorder dark:border-notion-darkBorder overflow-hidden">
+                <!-- Table Header & Filter Pills -->
+                <div class="p-4 sm:px-5 border-b border-notion-lightBorder dark:border-notion-darkBorder flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-sm font-semibold">Histórico de Movimentações</h2>
+                        <p class="text-xs text-notion-lightMuted dark:text-notion-darkMuted" id="table-count-label">0 registros neste mês</p>
+                    </div>
+
+                    <!-- Filter Pills -->
+                    <div class="flex items-center gap-1.5 bg-notion-lightBg dark:bg-notion-darkBg p-1 rounded-lg border border-notion-lightBorder dark:border-notion-darkBorder self-start sm:self-auto">
+                        <button data-filter="all" class="filter-pill px-2.5 py-1 rounded-md text-xs font-medium bg-notion-lightHover dark:bg-notion-darkHover text-notion-lightText dark:text-notion-darkText transition-colors">
+                            Todos
+                        </button>
+                        <button data-filter="expense" class="filter-pill px-2.5 py-1 rounded-md text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted hover:text-notion-lightText dark:hover:text-notion-darkText transition-colors">
+                            Gastos
+                        </button>
+                        <button data-filter="investment" class="filter-pill px-2.5 py-1 rounded-md text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted hover:text-notion-lightText dark:hover:text-notion-darkText transition-colors">
+                            Investimentos
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Responsive Table -->
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-notion-lightBorder dark:border-notion-darkBorder text-[11px] font-medium uppercase tracking-wider text-notion-lightMuted dark:text-notion-darkMuted bg-notion-lightBg/50 dark:bg-notion-darkBg/40">
+                                <th class="py-2.5 px-4">Descrição</th>
+                                <th class="py-2.5 px-3">Categoria</th>
+                                <th class="py-2.5 px-3 hidden sm:table-cell">Data</th>
+                                <th class="py-2.5 px-3 text-right">Valor</th>
+                                <th class="py-2.5 px-3 text-center w-12">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody" class="divide-y divide-notion-lightBorder dark:divide-notion-darkBorder text-xs">
+                            <!-- Rows injected dynamically via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Empty State -->
+                <div id="table-empty-state" class="hidden py-10 px-4 text-center">
+                    <div class="text-2xl mb-2">📭</div>
+                    <p class="text-xs font-medium text-notion-lightText dark:text-notion-darkText">Nenhuma movimentação encontrada</p>
+                    <p class="text-[11px] text-notion-lightMuted dark:text-notion-darkMuted mt-0.5">Use o formulário ao lado para adicionar gastos ou investimentos.</p>
+                </div>
+            </section>
+        </div>
+
+    </div>
+
+    <script>
+        /**
+         * Finanças & Investimentos - Notion Widget Application
+         * Complete state management, BRL formatting, Chart.js rendering, and localStorage persistence.
+         */
+
+        // --- CONFIGURATION & CATEGORIES ---
+        const CATEGORIES = {
+            expense: [
+                { name: 'Moradia', color: '#6366F1', badgeBg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20' },
+                { name: 'Alimentação', color: '#F43F5E', badgeBg: 'bg-rose-500/15 text-rose-400 border-rose-500/20' },
+                { name: 'Transporte', color: '#F59E0B', badgeBg: 'bg-amber-500/15 text-amber-400 border-amber-500/20' },
+                { name: 'Lazer', color: '#EC4899', badgeBg: 'bg-pink-500/15 text-pink-400 border-pink-500/20' },
+                { name: 'Saúde', color: '#14B8A6', badgeBg: 'bg-teal-500/15 text-teal-400 border-teal-500/20' },
+                { name: 'Assinaturas', color: '#8B5CF6', badgeBg: 'bg-violet-500/15 text-violet-400 border-violet-500/20' },
+                { name: 'Outros', color: '#64748B', badgeBg: 'bg-slate-500/15 text-slate-400 border-slate-500/20' }
+            ],
+            investment: [
+                { name: 'Renda Fixa', color: '#10B981', badgeBg: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' },
+                { name: 'Ações', color: '#3B82F6', badgeBg: 'bg-blue-500/15 text-blue-400 border-blue-500/20' },
+                { name: 'FIIs', color: '#06B6D4', badgeBg: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' },
+                { name: 'Reserva de Emergência', color: '#84CC16', badgeBg: 'bg-lime-500/15 text-lime-400 border-lime-500/20' },
+                { name: 'Cripto', color: '#F97316', badgeBg: 'bg-orange-500/15 text-orange-400 border-orange-500/20' }
+            ]
+        };
+
+        const STORAGE_KEY = 'notion_financas_dashboard_v1';
+
+        // Default realistic Brazilian sample data
+        const getSampleData = () => ({
+            theme: 'dark',
+            currentMonth: '2026-11',
+            months: {
+                '2026-11': {
+                    salary: 5500.00,
+                    extraIncome: 350.00,
+                    transactions: [
+                        { id: '1', type: 'expense', desc: 'Aluguel + Condomínio', category: 'Moradia', amount: 1650.00, date: '2026-11-05' },
+                        { id: '2', type: 'expense', desc: 'Supermercado Mensal', category: 'Alimentação', amount: 780.50, date: '2026-11-08' },
+                        { id: '3', type: 'investment', desc: 'Tesouro Selic 2029', category: 'Renda Fixa', amount: 800.00, date: '2026-11-10' },
+                        { id: '4', type: 'investment', desc: 'Aporte FIIs (MXRF11 / HGLG11)', category: 'FIIs', amount: 450.00, date: '2026-11-10' },
+                        { id: '5', type: 'expense', desc: 'Combustível e Uber', category: 'Transporte', amount: 320.00, date: '2026-11-12' },
+                        { id: '6', type: 'expense', desc: 'Internet, Streaming e Cloud', category: 'Assinaturas', amount: 189.90, date: '2026-11-15' },
+                        { id: '7', type: 'investment', desc: 'ETFs / Ações Brasil', category: 'Ações', amount: 300.00, date: '2026-11-16' },
+                        { id: '8', type: 'expense', desc: 'Jantar e Cinema', category: 'Lazer', amount: 240.00, date: '2026-11-18' }
+                    ]
+                }
+            }
+        });
+
+        // --- APPLICATION STATE ---
+        let appState = loadState();
+        let activeFilter = 'all';
+        let charts = {
+            distribution: null,
+            expenses: null,
+            investments: null
+        };
+
+        // --- CURRENCY & DATE UTILITIES ---
+        function formatBRL(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            }).format(value || 0);
+        }
+
+        function formatNumberInput(value) {
+            return new Intl.NumberFormat('pt-BR', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(value || 0);
+        }
+
+        function parseBRLInput(str) {
+            if (typeof str === 'number') return str;
+            if (!str) return 0;
+            // Remove currency symbols, spaces, dots (thousands), replace comma with dot
+            const cleaned = str.toString().replace(/[^\d,-]/g, '').replace(/\./g, '').replace(',', '.');
+            const parsed = parseFloat(cleaned);
+            return isNaN(parsed) ? 0 : Math.max(0, parsed);
+        }
+
+        function formatDateBR(isoDate) {
+            if (!isoDate) return '-';
+            const parts = isoDate.split('-');
+            if (parts.length !== 3) return isoDate;
+            return `${parts[2]}/${parts[1]}/${parts[0].slice(2)}`;
+        }
+
+        // --- PERSISTENCE ---
+        function loadState() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && parsed.months) return parsed;
+                }
+            } catch (e) {
+                console.error('Erro ao ler localStorage:', e);
+            }
+            return getSampleData();
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+            } catch (e) {
+                console.error('Erro ao salvar no localStorage:', e);
+            }
+        }
+
+        function getCurrentMonthData() {
+            const m = appState.currentMonth;
+            if (!appState.months[m]) {
+                appState.months[m] = {
+                    salary: 5500.00,
+                    extraIncome: 0,
+                    transactions: []
+                };
+            }
+            return appState.months[m];
+        }
+
+        // --- UI NOTIFICATIONS & MODAL ---
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'border-emerald-500/40 bg-notion-lightBg dark:bg-notion-darkCard text-emerald-500',
+                error: 'border-rose-500/40 bg-notion-lightBg dark:bg-notion-darkCard text-rose-500',
+                info: 'border-indigo-500/40 bg-notion-lightBg dark:bg-notion-darkCard text-notion-lightText dark:text-notion-darkText'
+            };
+            toast.className = `pointer-events-auto px-3.5 py-2.5 rounded-xl border shadow-lg text-xs font-medium flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 ${colors[type] || colors.info}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            });
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 2800);
+        }
+
+        function showConfirmModal(title, desc, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-desc').textContent = desc;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const close = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+
+            const confirmBtn = document.getElementById('modal-confirm');
+            const cancelBtn = document.getElementById('modal-cancel');
+
+            // Clone buttons to remove old event listeners
+            const newConfirm = confirmBtn.cloneNode(true);
+            const newCancel = cancelBtn.cloneNode(true);
+            confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
+            cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+
+            newCancel.addEventListener('click', close);
+            newConfirm.addEventListener('click', () => {
+                close();
+                onConfirm();
+            });
+        }
+
+        // --- THEME MANAGEMENT ---
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            const label = document.getElementById('theme-label');
+
+            if (theme === 'dark') {
+                html.classList.add('dark');
+                icon.textContent = '☀️';
+                label.textContent = 'Modo Claro';
+            } else {
+                html.classList.remove('dark');
+                icon.textContent = '🌙';
+                label.textContent = 'Modo Escuro';
+            }
+            appState.theme = theme;
+            saveState();
+            updateCharts();
+        }
+
+        // --- FORM CATEGORY POPULATION ---
+        function populateCategories(type) {
+            const select = document.getElementById('tx-category');
+            select.innerHTML = '';
+            CATEGORIES[type].forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat.name;
+                opt.textContent = cat.name;
+                select.appendChild(opt);
+            });
+        }
+
+        function setFormType(type) {
+            document.getElementById('tx-type').value = type;
+            const expBtn = document.getElementById('type-expense-btn');
+            const invBtn = document.getElementById('type-investment-btn');
+
+            if (type === 'expense') {
+                expBtn.className = 'py-1.5 px-3 rounded-md text-xs font-semibold transition-all bg-rose-500/15 text-rose-500 border border-rose-500/30';
+                invBtn.className = 'py-1.5 px-3 rounded-md text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted hover:text-notion-lightText dark:hover:text-notion-darkText transition-all border border-transparent';
+            } else {
+                invBtn.className = 'py-1.5 px-3 rounded-md text-xs font-semibold transition-all bg-emerald-500/15 text-emerald-500 border border-emerald-500/30';
+                expBtn.className = 'py-1.5 px-3 rounded-md text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted hover:text-notion-lightText dark:hover:text-notion-darkText transition-all border border-transparent';
+            }
+            populateCategories(type);
+        }
+
+        // --- CALCULATIONS & DASHBOARD RENDERING ---
+        function calculateMetrics() {
+            const data = getCurrentMonthData();
+            const totalIncome = (data.salary || 0) + (data.extraIncome || 0);
+            
+            let totalExpenses = 0;
+            let totalInvested = 0;
+            const expensesByCat = {};
+            const investmentsByCat = {};
+
+            data.transactions.forEach(tx => {
+                if (tx.type === 'expense') {
+                    totalExpenses += tx.amount;
+                    expensesByCat[tx.category] = (expensesByCat[tx.category] || 0) + tx.amount;
+                } else if (tx.type === 'investment') {
+                    totalInvested += tx.amount;
+                    investmentsByCat[tx.category] = (investmentsByCat[tx.category] || 0) + tx.amount;
+                }
+            });
+
+            const freeBalance = totalIncome - totalExpenses - totalInvested;
+
+            const expensesPct = totalIncome > 0 ? (totalExpenses / totalIncome) * 100 : 0;
+            const investedPct = totalIncome > 0 ? (totalInvested / totalIncome) * 100 : 0;
+            const freePct = totalIncome > 0 ? (freeBalance / totalIncome) * 100 : 0;
+
+            return {
+                salary: data.salary || 0,
+                extraIncome: data.extraIncome || 0,
+                totalIncome,
+                totalExpenses,
+                totalInvested,
+                freeBalance,
+                expensesPct,
+                investedPct,
+                freePct,
+                expensesByCat,
+                investmentsByCat
+            };
+        }
+
+        function updateKPIs(metrics) {
+            // Income inputs sync
+            const salaryInput = document.getElementById('salary-input');
+            const extraInput = document.getElementById('extra-income-input');
+            if (document.activeElement !== salaryInput) {
+                salaryInput.value = formatNumberInput(metrics.salary);
+            }
+            if (document.activeElement !== extraInput) {
+                extraInput.value = formatNumberInput(metrics.extraIncome);
+            }
+
+            const totalSub = document.getElementById('total-income-sub');
+            if (metrics.extraIncome > 0) {
+                totalSub.textContent = `Receita total combinada: ${formatBRL(metrics.totalIncome)}`;
+                document.getElementById('extra-income-box').classList.remove('hidden');
+            } else {
+                totalSub.textContent = 'Clique no valor acima para editar';
+            }
+
+            // Expenses KPI
+            document.getElementById('kpi-expenses-val').textContent = formatBRL(metrics.totalExpenses);
+            document.getElementById('kpi-expenses-pct').textContent = `${metrics.expensesPct.toFixed(1)}%`;
+            document.getElementById('kpi-expenses-bar').style.width = `${Math.min(100, metrics.expensesPct)}%`;
+
+            // Invested KPI
+            document.getElementById('kpi-invested-val').textContent = formatBRL(metrics.totalInvested);
+            document.getElementById('kpi-invested-pct').textContent = `${metrics.investedPct.toFixed(1)}%`;
+            document.getElementById('kpi-invested-bar').style.width = `${Math.min(100, metrics.investedPct)}%`;
+
+            // Free Balance KPI
+            const freeValEl = document.getElementById('kpi-free-val');
+            const freePctEl = document.getElementById('kpi-free-pct');
+            freeValEl.textContent = formatBRL(metrics.freeBalance);
+            freePctEl.textContent = `${metrics.freePct.toFixed(1)}%`;
+
+            if (metrics.freeBalance < 0) {
+                freeValEl.className = 'text-xl sm:text-2xl font-bold tracking-tight text-rose-500';
+                freePctEl.className = 'px-2 py-0.5 rounded-md text-[11px] font-semibold bg-rose-500/10 text-rose-500';
+                document.getElementById('kpi-free-sub').textContent = '⚠️ Atenção: Saídas superaram a receita';
+            } else {
+                freeValEl.className = 'text-xl sm:text-2xl font-bold tracking-tight text-notion-lightText dark:text-notion-darkText';
+                freePctEl.className = 'px-2 py-0.5 rounded-md text-[11px] font-semibold bg-amber-500/10 text-amber-500';
+                document.getElementById('kpi-free-sub').textContent = 'Disponível para caixa ou novos aportes';
+            }
+        }
+
+        function updateInsights(metrics) {
+            const insightText = document.getElementById('insight-text');
+            const insightEmoji = document.getElementById('insight-emoji');
+
+            if (metrics.totalIncome <= 0) {
+                insightEmoji.textContent = '📝';
+                insightText.innerHTML = 'Informe seu <strong>Salário do Mês</strong> no primeiro cartão para visualizar as proporções e recomendações financeiras.';
+                return;
+            }
+
+            // Find top expense category
+            let topExpCat = null;
+            let topExpVal = 0;
+            for (const [cat, val] of Object.entries(metrics.expensesByCat)) {
+                if (val > topExpVal) {
+                    topExpVal = val;
+                    topExpCat = cat;
+                }
+            }
+
+            const invPct = metrics.investedPct.toFixed(1);
+            const expPct = metrics.expensesPct.toFixed(1);
+
+            if (metrics.freeBalance < 0) {
+                insightEmoji.textContent = '🚨';
+                insightText.innerHTML = `Você comprometeu <strong class="text-rose-500">${expPct}%</strong> da sua renda com gastos e <strong class="text-emerald-500">${invPct}%</strong> com investimentos, fechando com déficit de <strong class="text-rose-500">${formatBRL(Math.abs(metrics.freeBalance))}</strong>. ${topExpCat ? `Seu maior peso foi em <strong>${topExpCat}</strong> (${formatBRL(topExpVal)}).` : ''}`;
+            } else if (metrics.investedPct >= 20) {
+                insightEmoji.textContent = '🚀';
+                insightText.innerHTML = `Excelente ritmo! Você está investindo <strong class="text-emerald-500">${invPct}%</strong> da sua receita (acima da meta recomendada de 20%), mantendo seus gastos em <strong>${expPct}%</strong>. ${topExpCat ? `Maior categoria de gasto: <strong>${topExpCat}</strong> (${formatBRL(topExpVal)}).` : ''} Ainda restam <strong>${formatBRL(metrics.freeBalance)}</strong> livres.`;
+            } else if (metrics.investedPct > 0) {
+                insightEmoji.textContent = '📈';
+                insightText.innerHTML = `Você já investiu <strong class="text-emerald-500">${invPct}%</strong> (${formatBRL(metrics.totalInvested)}) e gastou <strong>${expPct}%</strong> da sua receita. ${topExpCat ? `Seu maior gasto até agora é <strong>${topExpCat}</strong> (${formatBRL(topExpVal)}).` : ''} Você ainda tem <strong>${formatBRL(metrics.freeBalance)}</strong> livres que podem reforçar seus aportes.`;
+            } else {
+                insightEmoji.textContent = '💡';
+                insightText.innerHTML = `Seus gastos consomem <strong>${expPct}%</strong> da receita e você ainda não registrou investimentos neste mês. Você possui <strong>${formatBRL(metrics.freeBalance)}</strong> disponíveis para iniciar seus aportes.`;
+            }
+        }
+
+        // --- CHARTS (Chart.js) ---
+        function updateCharts() {
+            const metrics = calculateMetrics();
+            const isDark = appState.theme === 'dark';
+            const textColor = isDark ? '#9B9A97' : '#787774';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)';
+            const borderColor = isDark ? '#202020' : '#F7F7F5';
+
+            // 1. Distribution Donut Chart
+            const ctxDist = document.getElementById('chart-distribution').getContext('2d');
+            if (charts.distribution) charts.distribution.destroy();
+
+            const freeForChart = Math.max(0, metrics.freeBalance);
+            const hasDistData = metrics.totalExpenses > 0 || metrics.totalInvested > 0 || freeForChart > 0;
+
+            charts.distribution = new Chart(ctxDist, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Gastos', 'Investimentos', 'Saldo Livre'],
+                    datasets: [{
+                        data: hasDistData ? [metrics.totalExpenses, metrics.totalInvested, freeForChart] : [1],
+                        backgroundColor: hasDistData ? ['#F43F5E', '#10B981', '#F59E0B'] : [isDark ? '#2F2F2F' : '#E9E9E7'],
+                        borderColor: borderColor,
+                        borderWidth: 3,
+                        hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '68%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: textColor,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                padding: 14,
+                                font: { family: 'Inter', size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            enabled: hasDistData,
+                            callbacks: {
+                                label: (ctx) => {
+                                    const val = ctx.parsed;
+                                    const pct = metrics.totalIncome > 0 ? ((val / metrics.totalIncome) * 100).toFixed(1) : 0;
+                                    return ` ${ctx.label}: ${formatBRL(val)} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 2. Expenses by Category Horizontal Bar Chart
+            const ctxExp = document.getElementById('chart-expenses').getContext('2d');
+            const emptyExpMsg = document.getElementById('empty-expenses-chart');
+            const expCanvas = document.getElementById('chart-expenses');
+            if (charts.expenses) charts.expenses.destroy();
+
+            const expEntries = Object.entries(metrics.expensesByCat).sort((a, b) => b[1] - a[1]);
+            if (expEntries.length === 0) {
+                expCanvas.classList.add('hidden');
+                emptyExpMsg.classList.remove('hidden');
+            } else {
+                expCanvas.classList.remove('hidden');
+                emptyExpMsg.classList.add('hidden');
+
+                const expLabels = expEntries.map(e => e[0]);
+                const expValues = expEntries.map(e => e[1]);
+                const expColors = expLabels.map(label => {
+                    const found = CATEGORIES.expense.find(c => c.name === label);
+                    return found ? found.color : '#64748B';
+                });
+
+                charts.expenses = new Chart(ctxExp, {
+                    type: 'bar',
+                    data: {
+                        labels: expLabels,
+                        datasets: [{
+                            label: 'Gasto',
+                            data: expValues,
+                            backgroundColor: expColors,
+                            borderRadius: 6,
+                            barThickness: 18
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => ` ${formatBRL(ctx.parsed.x)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: gridColor },
+                                ticks: {
+                                    color: textColor,
+                                    font: { family: 'Inter', size: 10 },
+                                    callback: (val) => 'R$ ' + val
+                                }
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: {
+                                    color: textColor,
+                                    font: { family: 'Inter', size: 11 }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // 3. Investments Portfolio Doughnut Chart
+            const ctxInv = document.getElementById('chart-investments').getContext('2d');
+            const emptyInvMsg = document.getElementById('empty-investments-chart');
+            const invCanvas = document.getElementById('chart-investments');
+            if (charts.investments) charts.investments.destroy();
+
+            const invEntries = Object.entries(metrics.investmentsByCat).sort((a, b) => b[1] - a[1]);
+            if (invEntries.length === 0) {
+                invCanvas.classList.add('hidden');
+                emptyInvMsg.classList.remove('hidden');
+            } else {
+                invCanvas.classList.remove('hidden');
+                emptyInvMsg.classList.add('hidden');
+
+                const invLabels = invEntries.map(e => e[0]);
+                const invValues = invEntries.map(e => e[1]);
+                const invColors = invLabels.map(label => {
+                    const found = CATEGORIES.investment.find(c => c.name === label);
+                    return found ? found.color : '#10B981';
+                });
+
+                charts.investments = new Chart(ctxInv, {
+                    type: 'doughnut',
+                    data: {
+                        labels: invLabels,
+                        datasets: [{
+                            data: invValues,
+                            backgroundColor: invColors,
+                            borderColor: borderColor,
+                            borderWidth: 3,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '62%',
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    color: textColor,
+                                    usePointStyle: true,
+                                    pointStyle: 'circle',
+                                    padding: 12,
+                                    font: { family: 'Inter', size: 11 }
+                                }
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: (ctx) => {
+                                        const val = ctx.parsed;
+                                        const pct = metrics.totalInvested > 0 ? ((val / metrics.totalInvested) * 100).toFixed(1) : 0;
+                                        return ` ${ctx.label}: ${formatBRL(val)} (${pct}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- TRANSACTION TABLE RENDERING ---
+        function renderTable() {
+            const data = getCurrentMonthData();
+            const tbody = document.getElementById('transactions-tbody');
+            const emptyState = document.getElementById('table-empty-state');
+            const countLabel = document.getElementById('table-count-label');
+
+            const filtered = data.transactions.filter(tx => {
+                if (activeFilter === 'all') return true;
+                return tx.type === activeFilter;
+            });
+
+            // Sort newest first
+            const sorted = [...filtered].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+            countLabel.textContent = `${sorted.length} ${sorted.length === 1 ? 'registro' : 'registros'} exibidos`;
+            tbody.innerHTML = '';
+
+            if (sorted.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            emptyState.classList.add('hidden');
+
+            sorted.forEach(tx => {
+                const isExpense = tx.type === 'expense';
+                const catList = isExpense ? CATEGORIES.expense : CATEGORIES.investment;
+                const catObj = catList.find(c => c.name === tx.category);
+                const badgeClass = catObj ? catObj.badgeBg : 'bg-slate-500/15 text-slate-400 border-slate-500/20';
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-notion-lightHover/60 dark:hover:bg-notion-darkHover/60 transition-colors group';
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4 font-medium">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full ${isExpense ? 'bg-rose-500' : 'bg-emerald-500'}"></span>
+                            <span class="truncate max-w-[160px] sm:max-w-[240px]" title="${tx.desc}">${tx.desc}</span>
+                        </div>
+                    </td>
+                    <td class="py-2.5 px-3">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border ${badgeClass}">
+                            ${tx.category}
+                        </span>
+                    </td>
+                    <td class="py-2.5 px-3 text-notion-lightMuted dark:text-notion-darkMuted hidden sm:table-cell">
+                        ${formatDateBR(tx.date)}
+                    </td>
+                    <td class="py-2.5 px-3 text-right font-semibold whitespace-nowrap ${isExpense ? 'text-rose-500' : 'text-emerald-500'}">
+                        ${isExpense ? '-' : '+'} ${formatBRL(tx.amount)}
+                    </td>
+                    <td class="py-2.5 px-3 text-center">
+                        <button data-delete-id="${tx.id}" title="Excluir registro"
+                            class="p-1 rounded-md text-notion-lightMuted dark:text-notion-darkMuted hover:text-rose-500 hover:bg-rose-500/10 transition-colors">
+                            <svg class="w-3.5 h-3.5 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function refreshDashboard() {
+            const metrics = calculateMetrics();
+            updateKPIs(metrics);
+            updateInsights(metrics);
+            updateCharts();
+            renderTable();
+            saveState();
+        }
+
+        // --- EXPORT CSV ---
+        function exportMonthCSV() {
+            const data = getCurrentMonthData();
+            const metrics = calculateMetrics();
+            const rows = [
+                ['Mes', appState.currentMonth],
+                ['Salario Base', metrics.salary.toFixed(2)],
+                ['Renda Extra', metrics.extraIncome.toFixed(2)],
+                ['Total Gastos', metrics.totalExpenses.toFixed(2)],
+                ['Total Investido', metrics.totalInvested.toFixed(2)],
+                ['Saldo Livre', metrics.freeBalance.toFixed(2)],
+                [],
+                ['Tipo', 'Descricao', 'Categoria', 'Data', 'Valor (BRL)']
+            ];
+
+            data.transactions.forEach(tx => {
+                rows.push([
+                    tx.type === 'expense' ? 'Gasto' : 'Investimento',
+                    `"${tx.desc.replace(/"/g, '""')}"`,
+                    tx.category,
+                    tx.date || '',
+                    tx.amount.toFixed(2)
+                ]);
+            });
+
+            const csvContent = '\uFEFF' + rows.map(r => r.join(';')).join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `financas_notion_${appState.currentMonth}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Arquivo CSV exportado com sucesso!', 'success');
+        }
+
+        // --- EVENT LISTENERS INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set default date to today (or matching selected month)
+            const dateInput = document.getElementById('tx-date');
+            dateInput.value = '2026-11-18';
+
+            // Initialize theme & month selector
+            const monthSelect = document.getElementById('month-selector');
+            monthSelect.value = appState.currentMonth;
+            applyTheme(appState.theme);
+            setFormType('expense');
+
+            // Month Change
+            monthSelect.addEventListener('change', (e) => {
+                appState.currentMonth = e.target.value;
+                dateInput.value = `${appState.currentMonth}-15`;
+                refreshDashboard();
+            });
+
+            // Theme Toggle
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                applyTheme(appState.theme === 'dark' ? 'light' : 'dark');
+            });
+
+            // Salary & Extra Income Inputs
+            const salaryInput = document.getElementById('salary-input');
+            salaryInput.addEventListener('blur', () => {
+                const val = parseBRLInput(salaryInput.value);
+                getCurrentMonthData().salary = val;
+                salaryInput.value = formatNumberInput(val);
+                refreshDashboard();
+            });
+            salaryInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') salaryInput.blur();
+            });
+
+            const extraInput = document.getElementById('extra-income-input');
+            extraInput.addEventListener('blur', () => {
+                const val = parseBRLInput(extraInput.value);
+                getCurrentMonthData().extraIncome = val;
+                extraInput.value = formatNumberInput(val);
+                refreshDashboard();
+            });
+            extraInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') extraInput.blur();
+            });
+
+            document.getElementById('toggle-extra-income').addEventListener('click', () => {
+                const box = document.getElementById('extra-income-box');
+                box.classList.toggle('hidden');
+                if (!box.classList.contains('hidden')) {
+                    extraInput.focus();
+                }
+            });
+
+            // Form Type Switcher
+            document.getElementById('type-expense-btn').addEventListener('click', () => setFormType('expense'));
+            document.getElementById('type-investment-btn').addEventListener('click', () => setFormType('investment'));
+
+            // Add Transaction Form Submit
+            document.getElementById('transaction-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                const type = document.getElementById('tx-type').value;
+                const desc = document.getElementById('tx-desc').value.trim();
+                const category = document.getElementById('tx-category').value;
+                const amount = parseBRLInput(document.getElementById('tx-amount').value);
+                const date = document.getElementById('tx-date').value || `${appState.currentMonth}-01`;
+
+                if (!desc || amount <= 0) {
+                    showToast('Preencha uma descrição e um valor maior que zero.', 'error');
+                    return;
+                }
+
+                const newTx = {
+                    id: Date.now().toString(),
+                    type,
+                    desc,
+                    category,
+                    amount,
+                    date
+                };
+
+                getCurrentMonthData().transactions.push(newTx);
+                
+                // Reset description and amount
+                document.getElementById('tx-desc').value = '';
+                document.getElementById('tx-amount').value = '';
+                
+                refreshDashboard();
+                showToast(`${type === 'expense' ? 'Gasto' : 'Investimento'} adicionado!`, 'success');
+            });
+
+            // Table Delete Delegation
+            document.getElementById('transactions-tbody').addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-delete-id]');
+                if (!btn) return;
+                const id = btn.getAttribute('data-delete-id');
+                const data = getCurrentMonthData();
+                data.transactions = data.transactions.filter(t => t.id !== id);
+                refreshDashboard();
+                showToast('Movimentação removida.', 'info');
+            });
+
+            // Filter Pills
+            document.querySelectorAll('.filter-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    activeFilter = pill.getAttribute('data-filter');
+                    document.querySelectorAll('.filter-pill').forEach(p => {
+                        p.className = 'filter-pill px-2.5 py-1 rounded-md text-xs font-medium text-notion-lightMuted dark:text-notion-darkMuted hover:text-notion-lightText dark:hover:text-notion-darkText transition-colors';
+                    });
+                    pill.className = 'filter-pill px-2.5 py-1 rounded-md text-xs font-medium bg-notion-lightHover dark:bg-notion-darkHover text-notion-lightText dark:text-notion-darkText transition-colors';
+                    renderTable();
+                });
+            });
+
+            // Export CSV
+            document.getElementById('export-csv').addEventListener('click', exportMonthCSV);
+
+            // Reset Sample Data
+            document.getElementById('reset-sample').addEventListener('click', () => {
+                showConfirmModal(
+                    'Restaurar dados de exemplo?',
+                    'Isso substituirá os dados atuais pelos valores de demonstração.',
+                    () => {
+                        appState = getSampleData();
+                        monthSelect.value = appState.currentMonth;
+                        applyTheme(appState.theme);
+                        refreshDashboard();
+                        showToast('Dados de exemplo restaurados!', 'success');
+                    }
+                );
+            });
+
+            // Clear Current Month Data
+            document.getElementById('clear-data').addEventListener('click', () => {
+                showConfirmModal(
+                    'Limpar dados deste mês?',
+                    'Todas as movimentações e valores deste mês serão zerados.',
+                    () => {
+                        appState.months[appState.currentMonth] = {
+                            salary: 0,
+                            extraIncome: 0,
+                            transactions: []
+                        };
+                        refreshDashboard();
+                        showToast('Dados do mês limpos.', 'info');
+                    }
+                );
+            });
+
+            // Initial Render
+            refreshDashboard();
+        });
+    </script>
+</body>
+</html>
